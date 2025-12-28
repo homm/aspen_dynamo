@@ -72,6 +72,23 @@ class DynamoDBTable:
             raise self.exceptions.NoSuchKey(self.table_name, key_values)
         return self.coerce_item(resp["Item"])
 
+    async def put_item(self, item: dict | BaseModel, **kwargs):
+        table = await self.table_resource()
+        if isinstance(item, BaseModel):
+            item = item.model_dump()
+
+        resp = await table.put_item(Item=item, **kwargs)
+        if resp["Attributes"]:
+            return self.coerce_item(resp["Attributes"])
+
+    async def delete_item(self, *key_values, **kwargs):
+        table = await self.table_resource()
+
+        key = {name: value for name, value in zip(self.primary_key, key_values)}
+        resp = await table.delete_item(Key=key, **kwargs)
+        if resp['Attributes']:
+            return self.coerce_item(resp["Attributes"])
+
     async def query(self, hash_key, **kwargs):
         table = await self.table_resource()
 
