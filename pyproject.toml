@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aspen-dynamo"
-version = "0.0.1"
+version = "0.0.2"
 description = "Async DynamoDB table helper."
 requires-python = ">=3.10"
 dependencies = [
