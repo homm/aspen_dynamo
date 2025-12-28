@@ -9,9 +9,11 @@ import uvloop
 from aioboto3 import Session
 from aiobotocore.credentials import AioCredentials
 from aiodynamo.client import Client
-from aiodynamo.credentials import Key, StaticCredentials
+from aiodynamo.credentials import Key as AioDynamoKey, StaticCredentials
 from aiodynamo.http.aiohttp import AIOHTTP
 from aiodynamo.http.httpx import HTTPX
+from aiodynamo.http.types import (
+    Request as AioDynamoRequest, Response as AioDynamoResponse)
 from aiohttp import ClientSession, TCPConnector
 from httpx import AsyncClient as HttpXClient
 
@@ -26,7 +28,7 @@ async def _get_aiodynamo_cred():
     frozen = await boto_cred.get_frozen_credentials()
     if frozen.access_key and frozen.secret_key:
         return StaticCredentials(
-            Key(frozen.access_key, frozen.secret_key, frozen.token)
+            AioDynamoKey(frozen.access_key, frozen.secret_key, frozen.token)
         )
     raise RuntimeError()
 
@@ -42,6 +44,22 @@ class Runner:
     async def close(self): ...
 
     async def get_item(self) -> Any: ...
+
+    async def _capture_naked_aiodynamo_request(self) -> AioDynamoRequest:
+        async def capture(req: AioDynamoRequest) -> AioDynamoResponse:
+            nonlocal request
+            request = req
+            raise RuntimeError()
+            # return AioDynamoResponse(500, b'')
+
+        request = cast(AioDynamoRequest, None)
+        cred = await _get_aiodynamo_cred()
+        client = Client(capture, cred, boto_session.region_name)
+        try:
+            await client.get_item(self.table_name, {self.table_pk: self.item_id})
+        except RuntimeError:
+            pass
+        return request
 
 
 class Boto3ClientRunner(Runner):
@@ -72,7 +90,7 @@ class Boto3ResourceRunner(Runner):
         return await self.table.get_item(Key={self.table_pk: self.item_id})
 
 
-class AIODynamoHttpXRunner(Runner):
+class AioDynamoHttpXRunner(Runner):
     async def prepare(self):
         cred = await _get_aiodynamo_cred()
         client = Client(HTTPX(HttpXClient()), cred, boto_session.region_name)
@@ -82,7 +100,7 @@ class AIODynamoHttpXRunner(Runner):
         return await self.table.get_item({self.table_pk: self.item_id})
 
 
-class AIODynamoAioHttpRunner(Runner):
+class AioDynamoAioHttpRunner(Runner):
     async def prepare(self):
         ssl_context = ssl.create_default_context(cafile=certifi.where())
         self._wrapper = ClientSession(connector=TCPConnector(ssl=ssl_context))
@@ -110,6 +128,32 @@ class AspenDynamoRunner(Runner):
 
     async def get_item(self):
         return await self.table.get_item(self.item_id)
+
+
+class NakedHttpXRunner(Runner):
+    async def prepare(self):
+        self.client = HTTPX(HttpXClient())
+        self.request = await self._capture_naked_aiodynamo_request()
+
+    async def get_item(self):
+        resp = await self.client(self.request)
+        return resp.body.decode()
+
+
+class NakedAioHttpRunner(Runner):
+    async def prepare(self):
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        self._wrapper = ClientSession(connector=TCPConnector(ssl=ssl_context))
+        self.client = AIOHTTP(await self._wrapper.__aenter__())
+
+        self.request = await self._capture_naked_aiodynamo_request()
+
+    async def close(self):
+        await self._wrapper.__aexit__(None, None, None)
+
+    async def get_item(self):
+        resp = await self.client(self.request)
+        return resp.body.decode()
 
 
 async def get_latency(runner: Runner, n=10):
@@ -141,11 +185,13 @@ async def run(table_name: str, table_pk: str, item_id):
         await runner.close()
 
     for runner_class in [
+        AspenDynamoRunner,
         Boto3ClientRunner,
         Boto3ResourceRunner,
-        AIODynamoHttpXRunner,
-        AIODynamoAioHttpRunner,
-        AspenDynamoRunner,
+        NakedHttpXRunner,
+        AioDynamoHttpXRunner,
+        NakedAioHttpRunner,
+        AioDynamoAioHttpRunner,
     ]:
         runner = runner_class(table_name, table_pk, item_id)
 
