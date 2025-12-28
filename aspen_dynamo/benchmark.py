@@ -22,13 +22,12 @@ boto_session = Session()
 
 
 async def _get_aiodynamo_cred():
-    coro = cast(Awaitable[AioCredentials], boto_session.get_credentials())
-    if boto_cred := await coro:
-        frozen = await boto_cred.get_frozen_credentials()
-        if frozen.access_key and frozen.secret_key:
-            return StaticCredentials(
-                Key(frozen.access_key, frozen.secret_key, frozen.token)
-            )
+    boto_cred = await cast(Awaitable[AioCredentials], boto_session.get_credentials())
+    frozen = await boto_cred.get_frozen_credentials()
+    if frozen.access_key and frozen.secret_key:
+        return StaticCredentials(
+            Key(frozen.access_key, frozen.secret_key, frozen.token)
+        )
     raise RuntimeError()
 
 
@@ -136,9 +135,18 @@ async def run(table_name: str, table_pk: str, item_id):
     if item_id is None:
         runner = Boto3ResourceRunner(table_name, table_pk, None)
         await runner.prepare()
-        print(await runner.table.scan(Limit=1))
+        resp = await runner.table.scan(Limit=1)
+        item_id = resp["Items"][0][table_pk]
+        print("Item_is is not provided. Found:", item_id)
+        await runner.close()
 
-    for runner_class in [AspenDynamoRunner]:
+    for runner_class in [
+        Boto3ClientRunner,
+        Boto3ResourceRunner,
+        AIODynamoHttpXRunner,
+        AIODynamoAioHttpRunner,
+        AspenDynamoRunner,
+    ]:
         runner = runner_class(table_name, table_pk, item_id)
 
         print(f"Running {runner_class.__name__}...")

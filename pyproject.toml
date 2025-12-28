@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aspen-dynamo"
+version = "0.0.1"
+description = "Async DynamoDB table helper."
+requires-python = ">=3.10"
+dependencies = [
+  "aioboto3",
+  "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "flake8",
+  "isort",
+  "pyright[nodejs]",
+  "types-aioboto3[dynamodb]",
+]
+benchmark = [
+  "uvloop",
+  "aiodynamo[httpx,aiohttp]",
+]
+
+[tool.setuptools]
+packages = ["aspen_dynamo"]
