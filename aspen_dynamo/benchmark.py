@@ -62,7 +62,7 @@ class Runner:
         return request
 
 
-class Boto3ClientRunner(Runner):
+class AioBoto3ClientRunner(Runner):
     async def prepare(self):
         self._wrapper = boto_session.client("dynamodb")
         self.client = await self._wrapper.__aenter__()
@@ -77,7 +77,7 @@ class Boto3ClientRunner(Runner):
         )
 
 
-class Boto3ResourceRunner(Runner):
+class AioBoto3ResourceRunner(Runner):
     async def prepare(self):
         self._wrapper = boto_session.resource("dynamodb")
         resource = await self._wrapper.__aenter__()
@@ -177,7 +177,7 @@ async def get_load(runner: Runner, n=20, times=5):
 
 async def run(table_name: str, table_pk: str, item_id):
     if item_id is None:
-        runner = Boto3ResourceRunner(table_name, table_pk, None)
+        runner = AioBoto3ResourceRunner(table_name, table_pk, None)
         await runner.prepare()
         resp = await runner.table.scan(Limit=1)
         item_id = resp["Items"][0][table_pk]
@@ -185,13 +185,13 @@ async def run(table_name: str, table_pk: str, item_id):
         await runner.close()
 
     for runner_class in [
+        AioBoto3ClientRunner,
+        AioBoto3ResourceRunner,
         AspenDynamoRunner,
-        Boto3ClientRunner,
-        Boto3ResourceRunner,
-        NakedHttpXRunner,
-        AioDynamoHttpXRunner,
         NakedAioHttpRunner,
         AioDynamoAioHttpRunner,
+        NakedHttpXRunner,
+        AioDynamoHttpXRunner,
     ]:
         runner = runner_class(table_name, table_pk, item_id)
 

@@ -90,10 +90,10 @@ Results from two runs:
 
 | Test | Avg latency 1 | Avg latency 2 | CPU time 1 | CPU time 2 |
 | --- | --- | --- | --- | --- |
-| aspen-dynamo          | 3.24ms | 2.61ms | 0.78ms | 0.79ms |
-| boto3 (client)        | 2.67ms | 3.12ms | 0.75ms | 0.71ms |
-| boto3 (resource)      | 2.64ms | 3.39ms | 0.80ms | 0.78ms |
-| raw request (httpx)   | 2.54ms | 2.53ms | 2.05ms | 1.99ms |
-| aiodynamo (httpx)     | 3.01ms | 3.02ms | 2.07ms | 2.23ms |
-| raw request (aiohttp) | 2.17ms | 2.43ms | 0.26ms | 0.28ms |
-| aiodynamo (aiohttp)   | 2.15ms | 2.34ms | 0.32ms | 0.32ms |
+| aioboto3 (client)     | 3.12ms | 2.67ms | 0.75ms | 0.71ms |
+| aioboto3 (resource)   | 3.39ms | 2.64ms | 0.80ms | 0.78ms |
+| aspen-dynamo          | 2.61ms | 3.24ms | 0.78ms | 0.79ms |
+| raw request (aiohttp) | 2.43ms | 2.17ms | 0.26ms | 0.28ms |
+| aiodynamo (aiohttp)   | 2.34ms | 2.15ms | 0.32ms | 0.32ms |
+| raw request (httpx)   | 2.53ms | 2.54ms | 2.05ms | 1.99ms |
+| aiodynamo (httpx)     | 3.02ms | 3.01ms | 2.07ms | 2.23ms |
