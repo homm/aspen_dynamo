@@ -146,6 +146,7 @@ class DynamoDBTable(Generic[TItem]):
 
     async def query_all(self, hash_key, **kwargs) -> AsyncIterator[TItem]:
         assert "ExclusiveStartKey" not in kwargs
+        kwargs.setdefault("Limit", 50)
 
         last_key, first_run = None, True
         while last_key or first_run:
@@ -167,11 +168,12 @@ class DynamoDBTable(Generic[TItem]):
 
     async def scan_all(self, **kwargs) -> AsyncIterator[TItem]:
         assert "ExclusiveStartKey" not in kwargs
+        kwargs.setdefault("Limit", 50)
 
         last_key, first_run = None, True
         while last_key or first_run:
             first_run = False
-            items, last_key = await self.query(
+            items, last_key = await self.scan(
                 ExclusiveStartKey=last_key, **kwargs)
             for item in items:
                 yield item
