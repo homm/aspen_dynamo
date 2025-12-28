@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import abc as collections_abc
 from decimal import Decimal
 from typing import TYPE_CHECKING, AsyncIterator, Generic, TypeVar, cast, overload
 
@@ -26,13 +27,27 @@ class NoSuchKey(Boto3Error):
     pass
 
 
-def _coerce_decimal_types(item: dict) -> None:
-    for k, v in item.items():
-        if isinstance(v, Decimal):
-            v = float(v)
-            item[k] = int(v) if v.is_integer() else v
-        elif isinstance(v, dict):
-            _coerce_decimal_types(v)
+def _coerce_decimal_types(value):
+    if isinstance(value, Decimal):
+        value = float(value)
+        return int(value) if value.is_integer() else value
+    if isinstance(value, dict):
+        return {k: _coerce_decimal_types(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_coerce_decimal_types(v) for v in value]
+    if isinstance(value, set):
+        return {_coerce_decimal_types(v) for v in value}
+    return value
+
+
+def _sanitize_empty_sets(value):
+    if isinstance(value, collections_abc.Set):
+        return value if value else []
+    if isinstance(value, collections_abc.Mapping):
+        return {k: _sanitize_empty_sets(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_empty_sets(item) for item in value]
+    return value
 
 
 class DynamoDBTable(Generic[TItem]):
@@ -75,8 +90,7 @@ class DynamoDBTable(Generic[TItem]):
     def coerce_item(self, item: dict) -> TItem:
         if self.model:
             return cast(TItem, self.model.model_validate(item))
-        _coerce_decimal_types(item)
-        return cast(TItem, item)
+        return cast(TItem, _coerce_decimal_types(item))
 
     def key_from_values(self, key_values):
         return {name: value for name, value in zip(self.primary_key, key_values)}
@@ -89,27 +103,33 @@ class DynamoDBTable(Generic[TItem]):
             raise self.exceptions.NoSuchKey(self.table_name, key_values)
         return self.coerce_item(resp["Item"])
 
-    async def put_item(self, item: dict | BaseModel, **kwargs) -> TItem | None:
+    async def put_item(
+        self, item: dict | BaseModel, exclude_defaults=False,
+        sanitize_empty_sets=True, **kwargs
+    ) -> TItem | None:
         table = await self.table_resource()
         if isinstance(item, BaseModel):
-            item = item.model_dump()
+            item = item.model_dump(exclude_defaults=exclude_defaults)
+
+        if sanitize_empty_sets:
+            item = cast(dict, _sanitize_empty_sets(item))
 
         resp = await table.put_item(Item=item, **kwargs)
-        if resp["Attributes"]:
+        if "Attributes" in resp:
             return self.coerce_item(resp["Attributes"])
 
     async def update_item(self, *key_values, **kwargs) -> TItem | None:
         table = await self.table_resource()
 
         resp = await table.update_item(Key=self.key_from_values(key_values), **kwargs)
-        if resp["Attributes"]:
+        if "Attributes" in resp:
             return self.coerce_item(resp["Attributes"])
 
     async def delete_item(self, *key_values, **kwargs) -> TItem | None:
         table = await self.table_resource()
 
         resp = await table.delete_item(Key=self.key_from_values(key_values), **kwargs)
-        if resp['Attributes']:
+        if "Attributes" in resp:
             return self.coerce_item(resp["Attributes"])
 
     async def query(self, hash_key, **kwargs) -> tuple[list[TItem], dict | None]:
