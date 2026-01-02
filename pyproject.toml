@@ -17,6 +17,9 @@ dependencies = [
 dev = [
   "flake8",
   "isort",
+  "pytest",
+  "pytest-asyncio",
+  "pytest-cov",
   "pyright[nodejs]",
   "types-aioboto3[dynamodb]",
 ]
@@ -27,3 +30,6 @@ benchmark = [
 
 [tool.setuptools]
 packages = ["aspen_dynamo"]
+
+[tool.pytest.ini_options]
+addopts = "-v --cov-report=term:skip-covered --cov-report=html:coverage"
