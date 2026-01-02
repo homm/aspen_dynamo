@@ -1,9 +1,9 @@
 .PHONY: lint
 lint:
-	isort ./aspen_dynamo
-	flake8 ./aspen_dynamo
-	pyright ./aspen_dynamo
+	isort ./aspen_dynamo ./tests
+	flake8 ./aspen_dynamo ./tests
+	pyright ./aspen_dynamo ./tests
 
 .PHONY: test
 test:
-	pytest --cov=aspen_dynamo
+	pytest ./tests --cov=aspen_dynamo

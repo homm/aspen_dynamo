@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import abc as collections_abc
 from decimal import Decimal
-from typing import TYPE_CHECKING, AsyncIterator, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, TypeVar, cast, overload
 
 from boto3.dynamodb.conditions import ConditionBase, Key
 from boto3.exceptions import Boto3Error
@@ -27,7 +27,7 @@ class NoSuchKey(Boto3Error):
     pass
 
 
-def _coerce_decimal_types(value):
+def _coerce_decimal_types(value) -> Any:
     if isinstance(value, Decimal):
         value = float(value)
         return int(value) if value.is_integer() else value
@@ -40,7 +40,7 @@ def _coerce_decimal_types(value):
     return value
 
 
-def _sanitize_empty_sets(value):
+def _sanitize_empty_sets(value) -> Any:
     if isinstance(value, collections_abc.Set):
         return value if value else []
     if isinstance(value, collections_abc.Mapping):
