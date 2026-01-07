@@ -4,9 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aspen-dynamo"
-version = "0.1.2"
+version = "0.1.3"
 description = "Async DynamoDB table helper based on aioboto3."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
   "aioboto3",
